@@ -2,7 +2,8 @@ const http = require('http');
 
 const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    
+    const userAgent = req.headers['user-agent'] || '';
+
     // التحقق من المفتاح
     if (url.searchParams.get("key") !== "2026") {
         res.writeHead(403);
@@ -10,32 +11,34 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // الرابط الأصلي
     const targetUrl = "http://app.upsdo.me:8080/live/PCCQTZPXVCEG/041212071179/93914.ts";
 
-    const options = {
-        headers: {
-            'User-Agent': 'IPTVSmartersPlayer',
-            'Connection': 'keep-alive'
-        }
-    };
+    // --- الطريقة 1: إذا كان الطلب من متصفح (Web Player) ---
+    // المتصفحات ترسل عادة كلمة "Mozilla" أو "shaka" أو "hls.js"
+    if (userAgent.includes('Mozilla') || userAgent.includes('hls.js')) {
+        const options = {
+            headers: { 'User-Agent': 'IPTVSmartersPlayer' }
+        };
 
-    // سحب البيانات من السيرفر الأصلي وتمريرها
-    http.get(targetUrl, options, (proxyRes) => {
-        // إضافة رؤوس CORS لكي يقبلها المتصفح
-        res.writeHead(proxyRes.statusCode, {
-            'Content-Type': 'video/mp2t',
-            'Access-Control-Allow-Origin': '*', // هذا السطر يحل مشكلة الـ CORS
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Cache-Control': 'no-cache',
-            'Transfer-Encoding': 'chunked'
+        http.get(targetUrl, options, (proxyRes) => {
+            res.writeHead(proxyRes.statusCode, {
+                'Content-Type': 'video/mp2t',
+                'Access-Control-Allow-Origin': '*', // حل مشكلة CORS للمتصفح
+                'Cache-Control': 'no-cache',
+                'Transfer-Encoding': 'chunked'
+            });
+            proxyRes.pipe(res);
+        }).on('error', (e) => { res.end(e.message); });
+    } 
+    
+    // --- الطريقة 2: إذا كان الطلب من تطبيق (VLC / IPTV App) ---
+    else {
+        res.writeHead(302, {
+            'Location': targetUrl,
+            'Access-Control-Allow-Origin': '*'
         });
-
-        proxyRes.pipe(res);
-    }).on('error', (e) => {
-        res.end("Error: " + e.message);
-    });
+        res.end();
+    }
 });
 
 server.listen(process.env.PORT || 10000);
