@@ -1,29 +1,29 @@
 const http = require('http');
 
 const server = http.createServer((req, res) => {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    
-    // كلمة السر التي اخترتها
-    if (url.searchParams.get("pass") !== "7788") {
-        res.writeHead(403);
-        res.end("Access Denied");
-        return;
-    }
-
+    // الرابط الأصلي المشفر
     const targetUrl = "http://app.upsdo.me:8080/live/PCCQTZPXVCEG/041212071179/93914.ts";
 
-    // أهم خطوة: تزييف هوية الطلب ليبدو كأنه تطبيق IPTV Smarters
+    // إعدادات المحاكاة الكاملة لتطبيق IPTV Smarters
     const options = {
+        method: 'GET',
         headers: {
-            'User-Agent': 'IPTVSmartersPlayer', 
+            'User-Agent': 'Mozilla/5.0 (QtEmbedded; Linux; Target; Wayland) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 IPTV-Smarters-Pro/4.0',
             'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'X-Requested-With': 'com.nst.iptvsmarterstvbox',
             'Connection': 'keep-alive',
             'Host': 'app.upsdo.me:8080'
         }
     };
 
-    http.get(targetUrl, options, (proxyRes) => {
-        // نقل البيانات مع رؤوس متوافقة مع VLC
+    const proxyReq = http.request(targetUrl, options, (proxyRes) => {
+        // إذا كان السيرفر الأصلي يطلب "إعادة توجيه" (Redirect)
+        if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+             console.log("Redirecting to: " + proxyRes.headers.location);
+             // يمكنك هنا إضافة كود لتتبع الرابط الجديد إذا لزم الأمر
+        }
+
         res.writeHead(proxyRes.statusCode, {
             'Content-Type': 'video/mp2t',
             'Access-Control-Allow-Origin': '*',
@@ -32,10 +32,13 @@ const server = http.createServer((req, res) => {
         });
 
         proxyRes.pipe(res);
-    }).on('error', (e) => {
-        res.end("Error: " + e.message);
     });
+
+    proxyReq.on('error', (e) => {
+        res.end("Error Connecting to Server: " + e.message);
+    });
+
+    proxyReq.end();
 });
 
-// المنفذ الخاص بـ Render
 server.listen(process.env.PORT || 10000);
