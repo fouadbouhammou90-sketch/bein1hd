@@ -1,0 +1,12 @@
+{
+  "name": "stream-proxy",
+  "version": "1.0.0",
+  "description": "IPTV Proxy",
+  "main": "bein1hd.js",
+  "scripts": {
+    "start": "node bein1hd.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
